@@ -93,7 +93,7 @@ fn find_route<'a>(
         route.push(first.0);
         route.push(second.0);
 
-        let (possible, route) = find_route_rek(route, unvisited.clone(), 2, dist_matrix);
+        let (possible, route) = find_route_rek(route, unvisited.clone(), dist_matrix);
 
         // unvisit previous points
         unvisited[start].1 = false;
@@ -119,17 +119,20 @@ fn find_route<'a>(
 fn find_route_rek<'a>(
     mut route: Box<Vec<&'a Point>>,
     mut unvisited: Box<Vec<(&'a Point, bool)>>,
-    visited: usize,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> (bool, Option<Box<Vec<&'a Point>>>) {
 
     // if visited == unvisited.len() {
     //     return (true, Some(route))
     // }
-    // println!("{}, {}", visited, unvisited.len());
-    if unvisited.iter().find(|p| !p.1).is_none() {
+    if route.len() == unvisited.len() {
         return (true, Some(route))
     }
+
+    // if unvisited.iter().find(|p| !p.1).is_none() {
+    //     return (true, Some(route))
+    // }
+
 
     let pq = priority_queue(
         route[route.len() - 2],
@@ -138,15 +141,15 @@ fn find_route_rek<'a>(
         dist_matrix,
     );
     // println!("{:?}: {:?}", route.last(), pq);
-    route.iter().for_each(|p| print!("{} ", p.index));
-    println!();
+    // route.iter().for_each(|p| print!("{} ", p.index));
+    // println!();
     // println!("{:?}", route);
 
     for p_pq in pq {
         route.push(p_pq);
         unvisited.get_mut(p_pq.index).unwrap().1 = true;
 
-        let (possible, way) = find_route_rek(route.clone(), unvisited.clone(), visited+1, dist_matrix);
+        let (possible, way) = find_route_rek(route.clone(), unvisited.clone(), dist_matrix);
         if possible {
             return (true, way);
         }
