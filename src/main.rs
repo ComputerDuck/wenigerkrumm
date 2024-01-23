@@ -68,6 +68,7 @@ impl Point {
     // creates a new point from an index and two coordinates
     //
     // # Arguments 
+    //
     // * `index` - index of the point
     // * `x` - x position of the point
     // * `y` - y position of the point
@@ -82,56 +83,55 @@ impl Point {
 }
 
 fn main() {
-    let args = env::args().skip(1);
+    let path = "xyz";
 
-    for arg in args {
-        // read each point in the file into a Vector of points
-        let original: Vec<Point> = readfile(&arg);
+    // read each point in the file into a Vector of points
+    let original: Vec<Point> = readfile(path);
 
-        // generate a matrix of the distances between all the points
-        let mut dist_matrix: Vec<Vec<f32>> = vec![vec![0.0; original.len()]; original.len()];
-        for i in 0..original.len() {
-            for j in 0..original.len() {
-                dist_matrix[i][j] = distance(original[i], original[j]);
-            } 
-        }
-
-        // generate list of unvisited points, which have a boolean indicating wether they have been
-        // visited or not
-        let unvisited: Vec<(&Point, bool)> =
-            original.iter().map(|p| (p, false)).collect();
-
-        println!("calculating route. This may take a few seconds!");
-
-        // timer start
-        let start: Instant = Instant::now();
-
-        // run nearest neighbour algorithm
-        let route = find_route(unvisited, &dist_matrix);
-
-        // stop time
-        let time = start.elapsed().as_secs_f64();
-
-        // PRINTING THE RESULTS
-        // print the found route
-        println!("route: ");
-        for p in route.clone() {
-            println!("    {}: {} {}", p.index, p.x, p.y);
-        }
-
-        // calculate distance of route
-        let mut total: f32 = 0.;
-        for i in 1..route.len() {
-            total += dist_matrix[route[i].index][route[i-1].index];
-        }
-        println!("total distance: {}km", total);
-        println!("time: {}s", time);
+    // generate a matrix of the distances between all the points
+    let mut dist_matrix: Vec<Vec<f32>> = vec![vec![0.0; original.len()]; original.len()];
+    for i in 0..original.len() {
+        for j in 0..original.len() {
+            dist_matrix[i][j] = distance(original[i], original[j]);
+        } 
     }
+
+    // generate list of unvisited points, which have a boolean indicating wether they have been
+    // visited or not
+    let unvisited: Vec<(&Point, bool)> =
+        original.iter().map(|p| (p, false)).collect();
+
+    println!("calculating route. This may take a few seconds!");
+
+    // timer start
+    let start: Instant = Instant::now();
+
+    // run nearest neighbour algorithm
+    let route = find_route(unvisited, &dist_matrix);
+
+    // stop time
+    let time = start.elapsed().as_secs_f64();
+
+    // PRINTING THE RESULTS
+    // print the found route
+    println!("route: ");
+    for p in route.clone() {
+        println!("    {}: {} {}", p.index, p.x, p.y);
+    }
+
+    // calculate distance of route
+    let mut total: f32 = 0.;
+    for i in 1..route.len() {
+        total += dist_matrix[route[i].index][route[i-1].index];
+    }
+    println!("total distance: {}km", total);
+    println!("time: {}s", time);
 }
 
-/// calculates the find_route. Searches for route recursively from every possible starting point
+/// calculates the route. Searches for route recursively from every possible starting point
 ///
 /// # Arguments
+///
 /// * `unvisited` - list of all points and wether they have been visited
 /// * `dist_matrix` -  matrix of all point distances
 fn find_route<'a>(
@@ -149,12 +149,13 @@ fn find_route<'a>(
     while start < unvisited.len() {
         route.clear();
 
-        // visit first two points
+        // visit first two points (mark as visited)
         let first = unvisited[start];
         unvisited[start].1 = true;
         let second = unvisited[next];
         unvisited[next].1 = true;
 
+        // add start points to route
         route.push(first.0);
         route.push(second.0);
 
@@ -168,7 +169,7 @@ fn find_route<'a>(
         unvisited[next].1 = false;
 
         // choose next points
-        next = (next + 1) % (unvisited.len()-1);
+        next = (next + 1) % (unvisited.len());
         if start == next {
             start += 1;
             next = start + 1;
@@ -182,6 +183,7 @@ fn find_route<'a>(
 /// try all possible routes recursively
 ///
 /// # Arguments
+///
 /// * `route` - reference to current route
 /// * `unvisited` - list of all points and wether they have been visited
 /// * `dist_matrix` -  matrix of all point distances
@@ -206,7 +208,7 @@ fn find_route_rek<'a, 'b: 'a>(
     for p_pq in pq {
         // visit point
         route.push(p_pq);
-        unvisited.get_mut(p_pq.index).unwrap().1 = true;
+        unvisited[p_pq.index].1 = true;
 
         // find next points
         if find_route_rek(route, unvisited, dist_matrix) {
@@ -215,7 +217,7 @@ fn find_route_rek<'a, 'b: 'a>(
 
         // unvisit point
         route.pop();
-        unvisited.get_mut(p_pq.index).unwrap().1 = false;
+        unvisited[p_pq.index].1 = false;
     }
 
     false
