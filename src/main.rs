@@ -101,6 +101,8 @@ fn main() {
         let unvisited: Vec<(&Point, bool)> =
             original.iter().map(|p| (p, false)).collect();
 
+        println!("calculating route. This may take a few seconds!");
+
         // timer start
         let start: Instant = Instant::now();
 
@@ -110,6 +112,7 @@ fn main() {
         // stop time
         let time = start.elapsed().as_secs_f64();
 
+        // PRINTING THE RESULTS
         // print the found route
         println!("route: ");
         for p in route.clone() {
@@ -126,17 +129,27 @@ fn main() {
     }
 }
 
+/// calculates the find_route. Searches for route recursively from every possible starting point
+///
+/// # Arguments
+/// * `unvisited` - list of all points and wether they have been visited
+/// * `dist_matrix` -  matrix of all point distances
 fn find_route<'a>(
     mut unvisited: Vec<(&'a Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> Vec<&'a Point> {
+    // starting points
     let mut start: usize = 0;
     let mut next: usize = 1;
 
+    // initialize empty route
     let mut route: Vec<&Point> = vec![];
+
+    // check every possible combination of starting points
     while start < unvisited.len() {
         route.clear();
 
+        // visit first two points
         let first = unvisited[start];
         unvisited[start].1 = true;
         let second = unvisited[next];
@@ -145,6 +158,7 @@ fn find_route<'a>(
         route.push(first.0);
         route.push(second.0);
 
+        // find route recursively and return when a route has been found
         if find_route_rek(&mut route, &mut unvisited, dist_matrix) {
             break;
         }
@@ -165,15 +179,23 @@ fn find_route<'a>(
     route
 }
 
+/// try all possible routes recursively
+///
+/// # Arguments
+/// * `route` - reference to current route
+/// * `unvisited` - list of all points and wether they have been visited
+/// * `dist_matrix` -  matrix of all point distances
 fn find_route_rek<'a, 'b: 'a>(
     route: &mut Vec<&'a Point>,
     unvisited: &mut Vec<(&'b Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> bool {
+    // if all points have been visited, return true (route found)
     if route.len() == unvisited.len() {
         return true;
     }
 
+    // get queue of prioritized points (closest points)
     let pq = priority_queue(
         route[route.len() - 2],
         route[route.len() - 1],
@@ -182,13 +204,16 @@ fn find_route_rek<'a, 'b: 'a>(
     );
 
     for p_pq in pq {
+        // visit point
         route.push(p_pq);
         unvisited.get_mut(p_pq.index).unwrap().1 = true;
 
+        // find next points
         if find_route_rek(route, unvisited, dist_matrix) {
             return true;
         }
 
+        // unvisit point
         route.pop();
         unvisited.get_mut(p_pq.index).unwrap().1 = false;
     }
@@ -196,25 +221,36 @@ fn find_route_rek<'a, 'b: 'a>(
     false
 }
 
+/// find all visitable points (angle > 90deg) and sort by closest
+///
+/// # Arguments
+/// * `prev` - point before current point
+/// * `curr` - current point
+/// * `unvisited` - list of all points and wether they have been visited
+/// * `dist_matrix` -  matrix of all point distances
 fn priority_queue<'a>(
     prev: &Point,
     curr: &Point,
     unvisited: &Vec<(&'a Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> Vec<&'a Point> {
-    let mut queue: Vec<&Point> = vec![];
-
+    // calculate vector between previous and current point
     let prev_vec = Vector2::from(curr, prev);
+    // get all unvisited points in a Vector
     let unv: Vec<&Point> = unvisited
         .iter()
         .filter(|(_, v)| !v)
         .map(|(p, _)| *p)
         .collect();
 
+    let mut queue: Vec<&Point> = vec![];
     for p in unv {
+        // calulate vector between current and next point to check angle
         let curr_vec = Vector2::from(p, curr); 
+        // check wether angle is more or equals to 90deg
         if prev_vec.dot(&curr_vec) >= 0.0 {
             let curr_distance = dist_matrix[p.index][curr.index];
+            // sort point into queue dependent on distance
             let pos = queue.iter().position(|x| dist_matrix[x.index][curr.index] > curr_distance);
             match pos {
                  Some(i) => queue.insert(i, p),
@@ -226,11 +262,19 @@ fn priority_queue<'a>(
     queue
 }
 
-
-fn distance(point1: Point, point2: Point) -> f32 {
-    ( (point2.x - point1.x).powf(2.0) + (point2.y - point1.y).powf(2.0) ).sqrt()
+/// calculate distance between two points
+///
+/// # Arguments
+/// * `a` - first point
+/// * `b` - second point
+fn distance(a: Point, b: Point) -> f32 {
+    ( (b.x - a.x).powf(2.0) + (b.y - a.y).powf(2.0) ).sqrt()
 }
 
+/// read file and parse it to a Vector of points
+///
+/// # Arguments
+/// * `filename` - name of the example file to parse
 fn readfile(filename: &str) -> Vec<Point> {
     // open file
     let file = fs::read_to_string(filename).expect(&format!("Failed to open file {}", filename));
