@@ -3,29 +3,79 @@ use std::time::Instant;
 use std::env;
 use std::fs;
 
+/// represents a two dimensional Vector
 struct Vector2 {
+    /// displacement in x direction
     x: f32,
+    /// displacement in y direction
     y: f32,
 }
 impl Vector2 {
-    fn new(a: &Point, b: &Point) -> Self {
+    /// Creates a new Vector from two Points
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - reference to an initial Point (initial position)
+    /// * `b` - reference to a final Point (displacement position)
+    ///
+    /// # Example 
+    /// ```
+    /// let p1 = Point::new(0,0,0);
+    /// let p2 = Point::new(1,1,1);
+    ///
+    /// let vector = Vector2::from(p1, p2);
+    /// ```
+    fn from(a: &Point, b: &Point) -> Self {
         Vector2 {
             x: a.x - b.x,
             y: a.y - b.y,
         }
     }
+    /// Calculates the dot product from itself and another Vector
+    ///
+    /// # Arguments
+    ///
+    /// * `b` - reference to a Vector to calculate the dot product from
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let p1 = Point::new(0,0.,0.);
+    /// let p2 = Point::new(0,0.,1.);
+    /// let p3 = Point::new(0,1.,0.);
+    ///
+    /// let vector1 = Vector2::from(p1, p2);
+    /// let vector2 = Vector2::from(p1, p3);
+    ///
+    /// assert!(vector1.dot(&vector), 0);
+    /// ```
     fn dot(&self, b: &Vector2) -> f32 {
         self.x * b.x + self.y * b.y
     }
 }
 
 #[derive(Debug, Clone, Copy)]
+/// represents a point on a two-dimensional grid
 struct Point {
+    /// index of the point
     index: usize,
+    /// x position
     x: f32,
+    /// y position
     y: f32,
 }
 impl Point {
+    // creates a new point from an index and two coordinates
+    //
+    // # Arguments 
+    // * `index` - index of the point
+    // * `x` - x position of the point
+    // * `y` - y position of the point
+    //
+    // # Example 
+    // ```
+    // let point = Point::new(0,1.,1.);
+    // ```
     fn new(index: usize, x: f32, y: f32) -> Self {
         Point { index, x, y }
     }
@@ -35,65 +85,79 @@ fn main() {
     let args = env::args().skip(1);
 
     for arg in args {
+        // read each point in the file into a Vector of points
         let original: Vec<Point> = readfile(&arg);
 
+        // generate a matrix of the distances between all the points
         let mut dist_matrix: Vec<Vec<f32>> = vec![vec![0.0; original.len()]; original.len()];
-
         for i in 0..original.len() {
             for j in 0..original.len() {
                 dist_matrix[i][j] = distance(original[i], original[j]);
             } 
         }
 
+        // generate list of unvisited points, which have a boolean indicating wether they have been
+        // visited or not
         let unvisited: Box<Vec<(&Point, bool)>> =
             Box::new(original.iter().map(|p| (p, false)).collect());
 
-        // println!("running {}", arg);
+        // timer start
         let start: Instant = Instant::now();
+
+        // run nearest neighbour algorithm
         let route = find_route(unvisited, &dist_matrix);
+
+        // stop time
         let time = start.elapsed().as_secs_f64();
 
-        println!("route:");
+        // print the found route
+        println!("route: ");
         for p in route.clone() {
-            println!("{}", p.index);
+            println!("    {}: {} {}", p.index, p.x, p.y);
         }
 
+        // calculate distance of route
         let mut total: f32 = 0.;
         for i in 1..route.len() {
             total += dist_matrix[route[i].index][route[i-1].index];
         }
-        println!("total distance: {}", total);
-        println!("time: {}", time);
+        println!("total distance: {}km", total);
+        println!("time: {}s", time);
     }
 }
 
 fn find_route<'a>(
-    unvisited: Box<Vec<(&'a Point, bool)>>,
+    mut unvisited: Box<Vec<(&'a Point, bool)>>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> Vec<&'a Point> {
-    fn aux<'a>(
-        mut start: usize,
-        mut next: usize,
-        mut unvisited: Box<Vec<(&'a Point, bool)>>,
-        dist_matrix: &Vec<Vec<f32>>,
-    ) -> Vec<&'a Point> {
-        let mut route: Box<Vec<&Point>>= Box::new(vec![]);
+    let mut start: usize = 0;
+    let mut next: usize = 1;
 
-        if start > unvisited.len() {
-            return *route;
-        }
-
+    let mut route: Box<Vec<&Point>> = Box::new(vec![]);
+    while start < unvisited.len() {
+        route.clear();
 
         let first = unvisited[start];
         unvisited[start].1 = true;
         let second = unvisited[next];
         unvisited[next].1 = true;
 
-
         route.push(first.0);
         route.push(second.0);
 
-        let (possible, route) = find_route_rek(route, unvisited.clone(), dist_matrix);
+        println!("0: {:?}", route);
+
+        let mut b = false;
+        if find_route_rek(route.clone(), unvisited.clone(), dist_matrix) {
+            b = true;
+            println!("1: {:?}", route);
+        }
+        
+        println!("2: {:?}", route);
+
+        if b {
+            break;
+        }
 
         // unvisit previous points
         unvisited[start].1 = false;
@@ -106,33 +170,19 @@ fn find_route<'a>(
             next = start + 1;
         }
 
-        // match the result
-        match possible {
-            true => *route.unwrap(),
-            false => aux(start, next, unvisited, dist_matrix),
-        }
     }
 
-    aux(0, 1, unvisited, dist_matrix)
+    *route
 }
 
-fn find_route_rek<'a>(
+fn find_route_rek<'a, 'b: 'a>(
     mut route: Box<Vec<&'a Point>>,
-    mut unvisited: Box<Vec<(&'a Point, bool)>>,
+    mut unvisited: Box<Vec<(&'b Point, bool)>>,
     dist_matrix: &Vec<Vec<f32>>,
-) -> (bool, Option<Box<Vec<&'a Point>>>) {
-
-    // if visited == unvisited.len() {
-    //     return (true, Some(route))
-    // }
+) -> bool {
     if route.len() == unvisited.len() {
-        return (true, Some(route))
+        return true;
     }
-
-    // if unvisited.iter().find(|p| !p.1).is_none() {
-    //     return (true, Some(route))
-    // }
-
 
     let pq = priority_queue(
         route[route.len() - 2],
@@ -140,25 +190,21 @@ fn find_route_rek<'a>(
         unvisited.clone(),
         dist_matrix,
     );
-    // println!("{:?}: {:?}", route.last(), pq);
-    // route.iter().for_each(|p| print!("{} ", p.index));
-    // println!();
-    // println!("{:?}", route);
 
     for p_pq in pq {
-        route.push(p_pq);
+        route.as_mut().push(p_pq);
         unvisited.get_mut(p_pq.index).unwrap().1 = true;
 
-        let (possible, way) = find_route_rek(route.clone(), unvisited.clone(), dist_matrix);
-        if possible {
-            return (true, way);
+        if find_route_rek(route.clone(), unvisited.clone(), dist_matrix) {
+            println!("{}", route.len());
+            return true;
         }
 
-        route.pop();
+        route.as_mut().pop();
         unvisited.get_mut(p_pq.index).unwrap().1 = false;
     }
 
-    (false, None)
+    false
 }
 
 fn priority_queue<'a>(
@@ -169,7 +215,7 @@ fn priority_queue<'a>(
 ) -> Vec<&'a Point> {
     let mut queue: Vec<&Point> = vec![];
 
-    let prev_vec = Vector2::new(curr, prev);
+    let prev_vec = Vector2::from(curr, prev);
     let unv: Vec<&Point> = unvisited
         .iter()
         .filter(|(_, v)| !v)
@@ -177,7 +223,7 @@ fn priority_queue<'a>(
         .collect();
 
     for p in unv {
-        let curr_vec = Vector2::new(p, curr); 
+        let curr_vec = Vector2::from(p, curr); 
         if prev_vec.dot(&curr_vec) >= 0.0 {
             let curr_distance = dist_matrix[p.index][curr.index];
             let pos = queue.iter().position(|x| dist_matrix[x.index][curr.index] > curr_distance);
@@ -201,12 +247,12 @@ fn readfile(filename: &str) -> Vec<Point> {
     let file = fs::read_to_string(filename).expect(&format!("Failed to open file {}", filename));
 
     // parse file
-    let mut i = 0;
+    let mut i = -1;
     file.lines()
         .map(|l| l.split_whitespace().map(|n| n.parse().unwrap()).collect())
         .map(|p: Vec<f32>| {
             i += 1;
-            Point::new(i - 1, p[0], p[1])
+            Point::new(i as usize, p[0], p[1])
         })
         .collect()
 }
