@@ -98,8 +98,8 @@ fn main() {
 
         // generate list of unvisited points, which have a boolean indicating wether they have been
         // visited or not
-        let unvisited: Box<Vec<(&Point, bool)>> =
-            Box::new(original.iter().map(|p| (p, false)).collect());
+        let unvisited: Vec<(&Point, bool)> =
+            original.iter().map(|p| (p, false)).collect();
 
         // timer start
         let start: Instant = Instant::now();
@@ -127,13 +127,13 @@ fn main() {
 }
 
 fn find_route<'a>(
-    mut unvisited: Box<Vec<(&'a Point, bool)>>,
+    mut unvisited: Vec<(&'a Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> Vec<&'a Point> {
     let mut start: usize = 0;
     let mut next: usize = 1;
 
-    let mut route: Box<Vec<&Point>> = Box::new(vec![]);
+    let mut route: Vec<&Point> = vec![];
     while start < unvisited.len() {
         route.clear();
 
@@ -145,20 +145,10 @@ fn find_route<'a>(
         route.push(first.0);
         route.push(second.0);
 
-        println!("0: {:?}", route);
-
-        let mut b = false;
-        if find_route_rek(route.clone(), unvisited.clone(), dist_matrix) {
-            b = true;
-            println!("1: {:?}", route);
-        }
-        
-        println!("2: {:?}", route);
-
-        if b {
+        if find_route_rek(&mut route, &mut unvisited, dist_matrix) {
             break;
         }
-
+        
         // unvisit previous points
         unvisited[start].1 = false;
         unvisited[next].1 = false;
@@ -172,12 +162,12 @@ fn find_route<'a>(
 
     }
 
-    *route
+    route
 }
 
 fn find_route_rek<'a, 'b: 'a>(
-    mut route: Box<Vec<&'a Point>>,
-    mut unvisited: Box<Vec<(&'b Point, bool)>>,
+    route: &mut Vec<&'a Point>,
+    unvisited: &mut Vec<(&'b Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> bool {
     if route.len() == unvisited.len() {
@@ -187,20 +177,19 @@ fn find_route_rek<'a, 'b: 'a>(
     let pq = priority_queue(
         route[route.len() - 2],
         route[route.len() - 1],
-        unvisited.clone(),
+        unvisited,
         dist_matrix,
     );
 
     for p_pq in pq {
-        route.as_mut().push(p_pq);
+        route.push(p_pq);
         unvisited.get_mut(p_pq.index).unwrap().1 = true;
 
-        if find_route_rek(route.clone(), unvisited.clone(), dist_matrix) {
-            println!("{}", route.len());
+        if find_route_rek(route, unvisited, dist_matrix) {
             return true;
         }
 
-        route.as_mut().pop();
+        route.pop();
         unvisited.get_mut(p_pq.index).unwrap().1 = false;
     }
 
@@ -210,7 +199,7 @@ fn find_route_rek<'a, 'b: 'a>(
 fn priority_queue<'a>(
     prev: &Point,
     curr: &Point,
-    unvisited: Box<Vec<(&'a Point, bool)>>,
+    unvisited: &Vec<(&'a Point, bool)>,
     dist_matrix: &Vec<Vec<f32>>,
 ) -> Vec<&'a Point> {
     let mut queue: Vec<&Point> = vec![];
